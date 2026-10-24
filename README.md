@@ -1,6 +1,6 @@
-# Café Central · Sprint 3
+# Café Central · Sprint 4
 
-Aplicación local de pedidos: React + Vite + TypeScript, Express + TypeScript y SQLite con better-sqlite3. Requiere Node.js 22.17 o superior compatible y pnpm 10.11.0. Incluye Cypress con TypeScript, la prueba smoke y los tres recorridos E2E de pedidos. No incluye GitHub Actions, autenticación ni pagos.
+Aplicación local de pedidos: React + Vite + TypeScript, Express + TypeScript y SQLite con better-sqlite3. Requiere Node.js 22.17 o superior compatible y pnpm 10.11.0. Incluye Cypress con TypeScript, la prueba smoke, los tres recorridos E2E de pedidos e integración continua con GitHub Actions. No incluye autenticación ni pagos.
 
 ## Ejecutar desde la raíz
 
@@ -34,7 +34,7 @@ pnpm verify:api
 
 `dev:test` usa `.env.test` y una base separada. No debe ejecutarse a la vez que `dev`, porque comparten puertos. `verify:api` es una verificación básica de API, sin navegador ni E2E: inicia su propio backend en el puerto 3107, usa una base temporal dentro de `data/` y la elimina al finalizar. Comprueba validaciones, cálculo de total, stock, rollback, persistencia tras reiniciar y disponibilidad restringida del reset.
 
-`.env.ci.example` prepara los valores para futuros jobs de CI; todavía no hay workflow. CI puede inyectar esas variables y ejecutar `pnpm exec tsx server/index.ts`. Las variables ya presentes en el entorno prevalecen sobre los archivos usados por Node.
+`.env.ci.example` documenta los valores para CI. El workflow reutiliza `pnpm dev:test`, que carga `.env.test`, y establece `DATABASE_PATH=data/cafe-ci.sqlite` para separar la base de CI. Las variables ya presentes en el entorno prevalecen sobre los archivos usados por Node.
 
 | Archivo | Entorno | Base | Reset |
 | --- | --- | --- | --- |
@@ -78,6 +78,16 @@ Antes de cada recorrido se comprueban además los precios y existencias iniciale
 La configuración es exclusivamente E2E, con `baseUrl: 'http://localhost:5173'`. Para comprobar sus tipos: `pnpm exec tsc -p cypress/tsconfig.json`.
 
 El binario de Cypress se descarga en `.cache/Cypress` mediante `.npmrc`; esa caché, las capturas y los videos quedan fuera de Git. Los comandos de Cypress requieren que frontend y API ya estén iniciados.
+
+## Integración continua
+
+`.github/workflows/cypress.yml` se ejecuta en cada `push`, `pull_request` y manualmente mediante `workflow_dispatch`. Utiliza un solo job en Ubuntu 24.04, Node.js 22.17.1 y pnpm 10.11.0 leído de `packageManager` en `package.json`.
+
+Primero instala con `pnpm install --frozen-lockfile` y ejecuta `pnpm build`; si alguno falla, no se ejecutan las pruebas. Después, `cypress-io/github-action@v7` inicia `pnpm dev:test` con la API en `NODE_ENV=testing`. Su `wait-on` comprueba `http://localhost:5173` y `http://localhost:3000/api/products` antes de ejecutar las cuatro pruebas en Chrome headless, preinstalado en el runner. No utiliza esperas artificiales ni altera el reset en `beforeEach`.
+
+`cypress.config.ts` habilita `video: true` y mantiene las capturas automáticas de fallos. El workflow conserva durante 7 días los screenshots cuando falla el job (`cypress-screenshots`) y los videos tanto en éxito como en fallo (`cypress-videos`). Los pasos de artifacts usan `if-no-files-found: ignore`; solo suben `cypress/screenshots` y `cypress/videos`, sin bases SQLite, dependencias ni cachés.
+
+Después de subir los cambios, abre la pestaña **Actions** del repositorio, selecciona **Cypress E2E** y revisa el resultado. Los artifacts se descargan desde la página de cada ejecución; también puedes iniciar otra con **Run workflow**. No se necesitan secretos ni Cypress Cloud.
 
 ## API
 
