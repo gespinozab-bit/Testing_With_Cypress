@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-server/
+data/
+*.sqlite*
+*.db
+*.db-*
+.env
+.env.local
+*.log
+.cache/
+.pnpm-store/
+cypress/screenshots/
+cypress/videos/
